@@ -1,0 +1,1150 @@
+---
+title: "A Bayesian modelling framework for health care resource use and costs in trial-based HEE"
+subtitle: ""
+format: 
+  beamer: 
+    navigation: horizontal
+    theme: Boadilla
+    colortheme: whale
+highlight-style: monochrome
+code-block-bg: '#FFFFFF'
+code-block-border-left: '#FFFFFF'
+code-line-numbers: false
+keep-tex: false
+classoption:
+  - '`xcolor={dvipsnames}`{=latex}' 
+author: 
+  - \textbf{Andrea Gabrio}\newline\newline
+  - \small Department of Methodology and Statistics, FHML (UM)
+institute: 
+  - \scriptsize \olive \href{https://www.maastrichtuniversity.nl/gabrio}{\texttt{a.gabrio@maastrichtuniversity.nl}}
+  - \href{https://github.com/AnGabrio}{\texttt{https://github.com/AnGabrio}}
+  - \href{https://angabrio.github.io}{\texttt{https://angabrio.github.io}}
+  - \black\textbf{Bayes  Conference, Leiden, 2025}
+date-format: full
+date: 23 October 2025
+top-level-division: part
+bibliography: references_bayes2025.bib
+csl: apa.csl
+nocite: |
+  @*
+header-includes: 
+- \logo{\ifnum\thepage>1\includegraphics[height=.37cm]{UM_logo.png}\fi}
+- \titlegraphic{\vspace*{-0.4cm}\includegraphics[height=0.7cm]{UM_logo.jpg} \;\;\; \includegraphics[height=0.7cm]{mu_sigma.jpg}}
+- \newcommand\hideit[1]{\only<0| handout:1>{\mbox{}}\invisible<0| handout:1>{#1}}
+- \setbeamertemplate{itemize item}{$\bullet$} 
+- \setbeamertemplate{itemize subitem}{--} 
+- \setbeamertemplate{navigation symbols}{}
+- \setbeamertemplate{page number in head/foot}{}
+- \newcommand{\UM}{\logo{\includegraphics[height=.37cm]{UM_logo.png}}\setbeamertemplate{sidebar right}{\vfill\llap{\insertlogo\hskip0.0cm}\vskip0.015cm}}\newcommand{\nologo}{\logo{}}
+- \makeatother\setbeamertemplate{footline}{
+  \leavevmode
+  \hbox{
+  \begin{beamercolorbox}[wd=.2\paperwidth,ht=2.25ex,dp=1ex,center]{author in head/foot}
+    \usebeamerfont{author in head/foot}A. Gabrio (UM)
+  \end{beamercolorbox}
+  \begin{beamercolorbox}[wd=.3\paperwidth,ht=2.25ex,dp=1ex,center]{title in head/foot}
+    A Bayesian framework for HRU data \hspace*{1ex}
+  \end{beamercolorbox}
+  \begin{beamercolorbox}[wd=.5\paperwidth,ht=2.25ex,dp=1ex,center]{date in head/foot}
+    Bayes Conference, \insertdate \hspace*{1ex}
+  \end{beamercolorbox}}
+  \vskip0pt}\makeatletter
+- \setbeamertemplate{navigation symbols}{}
+- \definecolor{darkgreen}{rgb}{0.0,0.2,0.13}
+- \definecolor{yellowgreen}{rgb}{0.6,0.8,0.2}
+- \definecolor{myred}{rgb}{0.9 0.17 0.31}
+- \definecolor{myblue}{rgb}{0.14 0.34 0.55}
+- \definecolor{olive}{rgb}{.2 .31 .09}
+- \definecolor{orange}{rgb}{1 0.5 0}
+- \definecolor{mygrey}{rgb}{.94 .94 .94}
+- \definecolor{amber}{rgb}{1.0, 0.75, 0.0}
+- \definecolor{spanishred}{RGB}{198 11 30}
+- \definecolor{spanishyellow}{RGB}{255 196 0}
+- \definecolor{nedred}{RGB}{200 16 46}
+- \definecolor{nedwhite}{RGB}{255 255 255}
+- \definecolor{nedblue}{RGB}{0 61 165}
+- \newcommand\myred{\color{myred}}
+- \newcommand\myblue{\color{myblue}}
+- \newcommand\olive{\color{olive}}
+- \newcommand\orange{\color{orange}}
+- \newcommand\mygrey{\color{mygrey}}
+- \newcommand\amber{\color{amber}}
+- \newcommand\red{\color{red}}
+- \newcommand\blue{\color{blue}}
+- \newcommand\black{\color{black}}
+- \newcommand\white{\color{white}}
+- \newcommand\magenta{\color{magenta}}
+- \usepackage{tikz}
+- \usetikzlibrary{shapes,arrows,decorations.pathreplacing,positioning,calc}
+- \usepackage{amsmath}
+- \usepackage{makecell}
+- \usepackage{graphicx}
+- \usepackage{multirow}
+---
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, eval=TRUE}
+library(knitr)
+opts_chunk$set(prompt = TRUE, highlight = F, background = '#FFFFFF')
+```
+
+
+# Introduction to statistical modelling in HTA
+
+```{r, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+#library(missingHE)
+library(tidyverse)
+library(kableExtra)
+```
+
+## Individual-level data in HTA
+
+- Typically collected from studies (e.g. RCTs) at multiple time points
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\scalebox{.6}{
+\centering
+\begin{tabular}{ccccccccccccccccc}
+\hline\\[-7pt]
+ & & \multicolumn{3}{c}{\orange \textbf{Demographics}} & \multicolumn{4}{c}{\blue \textbf{HRQL data}} & \multicolumn{4}{c}{\red \textbf{Cost data}} &  \multicolumn{4}{c}{\olive \textbf{Clinical outcome}} \\
+\textbf{ID} & \textbf{Trt} & \orange Sex & \orange Age & $\orange \ldots$ & \blue $u_0$ & \blue $u_1$ & $\blue \ldots$ & $\blue u_J$ & $\red c_0$ & $\red c_1$ & \red\ldots & $\red c_J$ & $\olive y_0$ & $\olive y_1$ & \olive\ldots & $\olive y_J$\\[2pt]
+\hline\\[-7pt]
+1 & 1 & \orange M & \orange 23 & $\orange \ldots$ & \blue 0.32 & \blue 0.66 & $\blue \ldots$ & \blue 0.44 & \red 103 & \red 241 & \red\ldots & \red 80 & \olive $y_{10}$ & \olive $y_{11}$ & \olive\ldots & \olive $y_{1J}$ \\
+2 & 1 & \orange M & \orange 21 & $\orange \ldots$ & \blue 0.12 & \blue 0.16 & $\blue \ldots$ & \blue 0.38 & \red 1\,204 & \red 1\,808 & \red\ldots & \red 877 & \olive $y_{20}$ & \olive $y_{21}$ & \olive\ldots & \olive $y_{2J}$ \\
+3 & 2 & \orange F & \orange 19 & $\orange \ldots$ & \blue 0.49 & \blue 0.55 & $\blue \ldots$ & \blue 0.88 & \red 16 & \red 12 & \red\ldots & \red 22 & \olive $y_{30}$ & \olive $y_{31}$ & \olive\ldots & \olive $y_{3J}$\\
+$\ldots$ & $\ldots$ & $\orange \ldots$ & $\orange \ldots$ & $\orange \ldots$ & $\blue \ldots$ & $\blue \ldots$ & $\blue \ldots$ & $\blue \ldots$ & $\red \ldots$ & $\red\ldots$ & $\red\ldots$ & \red\ldots & \olive\ldots & \olive\ldots & \olive\ldots & \olive\ldots \\
+\hline\\[-7pt]
+\multicolumn{17}{l}{$\olive y_{ij} =$ Survival time, event indicator (eg CVD), number of events, continuous measurement (eg blood pressure), \ldots}\\
+\multicolumn{17}{l}{$\blue u_{ij} =$  Utility-based score to value health (eg EQ-5D, SF-36, Hospital Anxiety \& Depression Scale, \ldots)}\\
+\multicolumn{17}{l}{$\red c_{ij} =$  Cost of healthcare resources/services (eg CSRI, iMCQ, \ldots)}
+\end{tabular}}
+```
+
+:::
+
+. . .
+
+- \blue Effectiveness/utility \black data at each time $j$ and for each individual $i$ often obtained after mapping country-specific value sets to the individual responses of $L$ \blue health domains \black assessed (profile):
+
+$$
+\color{blue}{u_{ij}} \color{black} = \text{mapping algorithm}[\color{blue}{\text{HRQL}^1_{ij},\ldots,\text{HRQL}^L_{ij}} \color{black}]
+$$
+
+## Individual-level data in HTA
+
+- Typically collected from studies (e.g. RCTs) at multiple time points
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\scalebox{.6}{
+\centering
+\begin{tabular}{ccccccccccccccccc}
+\hline\\[-7pt]
+ & & \multicolumn{3}{c}{\orange \textbf{Demographics}} & \multicolumn{4}{c}{\blue \textbf{HRQL data}} & \multicolumn{4}{c}{\red \textbf{Cost data}} &  \multicolumn{4}{c}{\olive \textbf{Clinical outcome}} \\
+\textbf{ID} & \textbf{Trt} & \orange Sex & \orange Age & $\orange \ldots$ & \blue $u_0$ & \blue $u_1$ & $\blue \ldots$ & $\blue u_J$ & $\red c_0$ & $\red c_1$ & \red\ldots & $\red c_J$ & $\olive y_0$ & $\olive y_1$ & \olive\ldots & $\olive y_J$\\[2pt]
+\hline\\[-7pt]
+1 & 1 & \orange M & \orange 23 & $\orange \ldots$ & \blue 0.32 & \blue 0.66 & $\blue \ldots$ & \blue 0.44 & \red 103 & \red 241 & \red\ldots & \red 80 & \olive $y_{10}$ & \olive $y_{11}$ & \olive\ldots & \olive $y_{1J}$ \\
+2 & 1 & \orange M & \orange 21 & $\orange \ldots$ & \blue 0.12 & \blue 0.16 & $\blue \ldots$ & \blue 0.38 & \red 1\,204 & \red 1\,808 & \red\ldots & \red 877 & \olive $y_{20}$ & \olive $y_{21}$ & \olive\ldots & \olive $y_{2J}$ \\
+3 & 2 & \orange F & \orange 19 & $\orange \ldots$ & \blue 0.49 & \blue 0.55 & $\blue \ldots$ & \blue 0.88 & \red 16 & \red 12 & \red\ldots & \red 22 & \olive $y_{30}$ & \olive $y_{31}$ & \olive\ldots & \olive $y_{3J}$\\
+$\ldots$ & $\ldots$ & $\orange \ldots$ & $\orange \ldots$ & $\orange \ldots$ & $\blue \ldots$ & $\blue \ldots$ & $\blue \ldots$ & $\blue \ldots$ & $\red \ldots$ & $\red\ldots$ & $\red\ldots$ & \red\ldots & \olive\ldots & \olive\ldots & \olive\ldots & \olive\ldots \\
+\hline\\[-7pt]
+\multicolumn{17}{l}{$\olive y_{ij} =$ Survival time, event indicator (eg CVD), number of events, continuous measurement (eg blood pressure), \ldots}\\
+\multicolumn{17}{l}{$\blue u_{ij} =$  Utility-based score to value health (eg EQ-5D, SF-36, Hospital Anxiety \& Depression Scale, \ldots)}\\
+\multicolumn{17}{l}{$\red c_{ij} =$  Cost of healthcare resources/services (eg CSRI, iMCQ, \ldots)}
+\end{tabular}}
+```
+
+:::
+
+- \red Cost \black data at each time $j$ and for each individual $i$ obtained after applying service-specific unit prices $p_k$ to each of the $K$ \red resource use services \black collected and summing up their costs:
+
+$$
+\color{red}{c_{ij}} \color{black} = \color{red}{\text{HRU}^1_{ij}} \color{black}\times p_1 + \ldots + \color{red}{\text{HRU}^K_{ij}} \color{black}\times p_K
+$$
+
+
+## Individual-level data in HTA
+
+- Aggregate measures, e.g. \blue QALYs \black and \red total costs\black, are then obtained by combining \blue $u_{ij}$ \black and \red $c_{ij}$ \black data over the study follow-up time.
+
+:::: {layout="[0.5, 0.5]"}
+
+:::{#firstcol}
+![](figure\QALYs.jpg){width=40% fig-align="left"}
+
+:::
+
+:::{#secondcol}
+$\text{QALY} = \text{"Area Under the Curve"}$
+
+$$
+\begin{aligned}
+\hspace{-0cm} \color{blue}{e_i} \color{black} &= \sum_{j=1}^{J} \left(\color{blue}{u_{ij}}\color{black}+\color{blue}{u_{i\hspace{.5pt}j-1}}\color{black}\right) \frac{\delta_{j}}{2}\\
+\color{red}{tc_i} \color{black}&= \sum_{j=1}^J \color{red}{c_{ij}}\color{black}
+\end{aligned}
+$$
+&nbsp; where $\delta_j=\frac{\mbox{Time}_j-\mbox{Time}_{j-1}}{\mbox{Unit of Time}}$
+
+:::
+
+::::
+
+## Handling missing data in trial-based CEA
+
+- Things to consider in the analysis (Faria et al. 2014):
+
+  + Avoid biased methods (e.g. *case deletion*) in favour of those grounded on "plausible" \myred \textbf{missingness assumptions} \black(e.g. *multiple imputation*)
+  + Explore the impact of alternative assumptions on results in \myred \textbf{sensitivity analysis} \black
+
+. . .
+
+- Analysis can be conducted at *different levels*:
+
+  + \blue HRQL \black and \red HRU \black responses at each time (**disaggregated**)
+  + \blue Utilities \black and \red costs \black at each time (**intermediate**)
+  + \blue QALYs \black and \red Total costs \black (**aggregated**)
+
+. . .
+
+- Need to choose the right \myblue \textbf{balance} \black between *modelling all evidence* and *fitting a stable model* 
+
+## Current missing data practice
+
+Ling at el. 2022 revealed a somewhat \myred \textbf{unclear picture} \black about *missing data methods* in routine analyses (2016-2021):
+
+- Different according to the level of data aggregation used in analysis
+
+- \myblue \textbf{MI} \black often used at \myblue aggregated/intermediate \black level, while at \myred disaggregated \black level missing values are often \myred \textbf{"filled-in"} \black in some ways
+
+- Typical of \red HRU \black (usually some answers skipped) compared to \blue HRQL \black instruments (usually all answers skipped)
+
+- In many cases \red HRUs \black are imputed based on *restrictive assumptions* (e.g. \myred \textbf{assumed zero}\black) which, if not justified, can **misrepresent uncertainty** and **distort** the results
+  
+## A Bayesian framework for trial-based CE data
+
+- Why Bayesian (Spiegelhalter et al. 2004)?
+
+  + \myblue \textbf{Modular structure} \black to handle multiple data features (e.g. skewness, clustering, missingness) 
+  + Imputation and estimation steps are \myblue \textbf{jointly} \black performed and always "congenial"
+  
+  + Direct implementation of **probabilistic sensitivity analysis** (PSA)
+
+- **Aim** - apply framework to a real case study:
+
+  + Assess impact of *different missing HRU assumptions* on posterior estimates
+  
+  + Fit separate models *at different levels of data aggregation* and compare the results
+
+
+# Case study
+
+## The PBS trial
+
+- The *Positive Behaviour Support* (PBS) trial was an RCT involving individuals with mild to severe intellectual disabilities (Hassiotis et al. 2018)
+
+  + Participants ($n = 244$) allocated to either **PBS** ($n_2 = 108$) or **TAU** ($n_1 = 136$)
+  
+  + \blue HRQL \black and \red HRU \black data collected via \blue EQ-5D-5L \black and \red CSRI \black questionnaires at baseline ($j=0$), 6 and 12-months ($j=1,2$) 
+
+- Focus on the following individual-level CE data:
+
+  + \blue Utilities \black derived from \blue EQ-5D \black answers and UK value sets (\blue $u_{ij}$\black)
+  
+  + \red HRUs \black for $K=9$ types of \red healthcare services \black (\red $\text{hru}^k_{ij}$\black)
+
+## Missingness rates
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\scalebox{.55}{
+\centering
+\begin{tabular}{c|ccc|c}
+\toprule
+\textbf{Outcome} & \textbf{Baseline} ($j=0$) & \textbf{6-months} ($j=1$) & \textbf{12-months} ($j=2$) & \textbf{ic (outcome)}\\  \midrule
+ \color{blue}{Utilities ($u$)}   & 14 (5.7\%)  & 23 (9.4\%) & 16 (6.6\%) & 40 (16.4\%)\\ [0.5em]
+ \color{red}{PSYDR ($\text{hru}^1$)}   & 0 & 18 (7.4\%) & 12 (4.9\%) & 22 (9\%)\\ [0.5em]
+ \color{red}{PSYCH ($\text{hru}^2$)}   & 2 (1.4\%) & 12 (4.9\%) & 9 (3.7\%)  & 14 (5.7\%)\\ [0.5em]
+ \color{red}{PHYSI ($\text{hru}^3$)}   & 1 (0.4\%) & 13 (5.3\%) & 10 (4.1\%) & 16 (6.6\%)\\ [0.5em]
+ \color{red}{DENT ($\text{hru}^4$)}   & 1 (0.4\%) & 14 (5.7\%)  & 12 (4.9\%) & 19 (7.8\%)\\ [0.5em]
+ \color{red}{SOCWORK ($\text{hru}^5$)} & 1 (0.4\%) &  14 (5.7\%) & 11 (4.5\%) & 18 (7.4\%)\\ [0.5em]
+ \color{red}{COMWORK ($\text{hru}^6$)} & 0 & 13 (5.3\%) & 11 (4.5\%) & 15 (6.1\%)\\ [0.5em]
+ \color{red}{GP ($\text{hru}^7$)}  & 3 (2.1\%) &  15 (6.2\%)  & 14 (5.7\%) & 22 (9\%)\\ [0.5em]
+ \color{red}{NURSE ($\text{hru}^8$)} & 2 (1.4\%)  &17 (7\%)  & 13 (5.3\%) & 24 (9.8\%)\\ [0.5em]
+ \color{red}{THERAP ($\text{hru}^9$)} & 1 (0.4\%)  & 15 (6.1\%) & 12 (4.9\%) & 19 (7.8\%)\\ \midrule
+\textbf{ic (time)} & 10 (4.2\%)  & 22 (9\%)  & 17 (7\%) & \textbf{59 (24.2\%)}\\ %36 (15\%)
+\bottomrule
+\end{tabular}}
+```
+
+- \blue EQ5D \black data only affected by *unit nonresponse*, while \red CSRI \black data affected by both *unit* and *item nonresponse*
+
+- Overall proportion of incomplete cases is **substantial** ($\approx 24\%$)
+
+:::
+
+## Structural zeros
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\scalebox{.6}{
+\centering
+\begin{tabular}{c|c}
+\toprule
+\textbf{Outcome} & \textbf{Structural zeros} \\  \midrule
+ \color{red}{PSYDR ($\text{hru}^1$)}   & 37 (15\%) \\ [0.5em]
+ \color{red}{PSYCH ($\text{hru}^2$)}   & 159 (65\%) \\ [0.5em]
+ \color{red}{PHYSI ($\text{hru}^3$)}   & 189 (77\%) \\ [0.5em]
+ \color{red}{DENT ($\text{hru}^4$)}   & 35 (14\%)  \\ [0.5em]
+ \color{red}{SOCWORK ($\text{hru}^5$)} & 47 (19\%) \\ [0.5em]
+ \color{red}{COMWORK ($\text{hru}^6$)} & 196 (80\%) \\ [0.5em]
+ \color{red}{GP ($\text{hru}^7$)}  & 1 (0.4\%)  \\ [0.5em]
+ \color{red}{NURSE ($\text{hru}^8$)} & 53 (22\%)   \\ [0.5em]
+ \color{red}{THERAP ($\text{hru}^9$)} & 85 (35\%)  \\
+\bottomrule
+\end{tabular}}
+```
+
+- Many individuals have constant zero \red HRU \black values across all times (so called \myred \textbf{"structural zeros"}\black)
+
+- These values induce a *high degree of skewness* in the empirical distributions
+
+:::
+
+# Modelling framework
+
+## Fitting models at different levels of data aggregation
+
+- Consider three alternative model specifications:
+
+  + At the **aggregated** level ($\color{blue}{e_i},\color{red}{tc_i}$) -- O'Hagan et al. 2001 
+  + At the **intermediate** level ($\color{blue}{u_{ij}},\color{red}{c_{ij}}$) -- Gabrio et al. 2020 
+  + At the **disaggregated** level ($\color{blue}{\text{HRQL}^l_{ij}}, \color{red}{\text{HRU}^k_{ij}}$)
+
+. . .
+
+- Easier to specify model at **more aggregated** levels \red\textbf{BUT}\black:
+
+  + when \myred item nonresponse \black occurs, it is not possible to directly incorporate evidence from partially-observed cases into the analysis
+  
+  + need to either \myred \textbf{discard} \black cases or \myred \textbf{impute} \black them in some way *prior* to model fitting
+
+. . .
+
+- Models fitted at **more disaggregated** level can overcome this limitation but are usually *more challenging* to fit
+
+## Aggregated-data model
+
+- Cross-sectional model for \blue QALYs \black(\blue$e_i$\black) and \red Total costs \black(\red$tc_i$\black)
+
+$$
+\small p(\color{blue}{e_i}\color{black}{,}\color{red}{tc_i}\color{black}{)}=p(\color{red}{tc_i}\color{black}{\mid}\color{blue}{e_i}\color{black}{)}p(\color{blue}{e_i}\color{black}{)}
+$$
+
+. . .
+
+:::: {layout="[0.5, 0.5]"}
+
+:::{#firstcol}
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\begin{tikzpicture}
+\draw(-1.2,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](enode){$\color{blue}{e_i}$};
+\draw(0,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phienode){$\phi_{ie}$};
+\draw(-0,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psienode){$\sigma_{e}$};
+\draw(1.1,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xenode){$X_{ie}$};
+\draw(-0,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](alphanode){$\boldsymbol\alpha$};
+
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=0pt,thin] (phienode) -- (enode);
+\draw [->,>=latex,shorten >=-2pt,auto,shorten <=-4pt,node distance=.0pt,thin] (psienode) -- (enode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xenode) -- (phienode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-2pt,auto,node distance=.0pt,thin] (alphanode) -- (phienode);
+
+\draw[rounded corners=15pt,thick,color=blue] (-1.5,-.55) rectangle ++ (2.95,3.1) node[xshift=-1.1cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for QALY};
+
+\end{tikzpicture}
+```
+:::
+
+:::
+
+:::{#secondcol}
+
+\small \blue \center{Marginal model for $e$} \black
+
+- Select a *distribution* $f(\cdot)$ for each variable (e.g. Normal, Gamma)
+
+$$
+\color{blue}{e_i}\color{black}{\sim} f(\phi_{ie},\sigma_{e})
+$$
+
+:::
+        
+::::
+
+## Aggregated-data model
+
+- Cross-sectional model for \blue QALYs \black(\blue$e_i$\black) and \red Total costs \black(\red$tc_i$\black)
+
+$$
+\small p(\color{blue}{e_i}\color{black}{,}\color{red}{tc_i}\color{black}{)}=p(\color{red}{tc_i}\color{black}{\mid}\color{blue}{e_i}\color{black}{)}p(\color{blue}{e_i}\color{black}{)}
+$$
+
+:::: {layout="[0.5, 0.5]"}
+
+:::{#firstcol}
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\begin{tikzpicture}
+\draw(-1.2,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](enode){$\color{blue}{e_i}$};
+\draw(0,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phienode){$\phi_{ie}$};
+\draw(-0,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psienode){$\sigma_{e}$};
+\draw(1.1,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xenode){$X_{ie}$};
+\draw(-0,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](alphanode){$\boldsymbol\alpha$};
+
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=0pt,thin] (phienode) -- (enode);
+\draw [->,>=latex,shorten >=-2pt,auto,shorten <=-4pt,node distance=.0pt,thin] (psienode) -- (enode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xenode) -- (phienode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-2pt,auto,node distance=.0pt,thin] (alphanode) -- (phienode);
+
+\draw[rounded corners=15pt,thick,color=blue] (-1.5,-.55) rectangle ++ (2.95,3.1) node[xshift=-1.1cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for QALY};
+
+\end{tikzpicture}
+```
+:::
+
+:::
+
+:::{#secondcol}
+
+\small \blue \center{Marginal model for $e$} \black
+
+- Select a *distribution* $f(\cdot)$ for each variable (e.g. Normal, Gamma)
+
+- Choose *structure* and *link function* $g(\cdot)$ to model dependence on other variables (e.g. $\log$)
+
+$$
+\begin{aligned}
+\color{blue}{e_i}&\color{black}{\sim} f(\phi_{ie},\sigma_{e})\\
+g(\phi_{ie})&=\alpha_{0}+\alpha_1X_{ie}+\ldots
+\end{aligned}
+$$
+
+:::
+        
+::::
+
+## Aggregated-data model
+
+- Cross-sectional **joint** model for \blue QALYs \black(\blue$e_i$\black) and \red Total costs \black(\red$tc_i$\black)
+
+
+$$
+\small p(\color{blue}{e_i}\color{black}{,}\color{red}{tc_i}\color{black}{)}=p(\color{red}{tc_i}\color{black}{\mid}\color{blue}{e_i}\color{black}{)}p(\color{blue}{e_i}\color{black}{)}
+$$
+
+:::: {layout="[0.5, 0.5]"}
+
+:::{#firstcol}
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\begin{tikzpicture}
+\draw(-2.5,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](tcnode){$\color{red}{{tc}_i}$};
+\draw(-2.5,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phitcnode){$\phi_{itc}$};
+\draw(-3.6,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psitcnode){$\sigma_{tc}$};
+\draw(-3.6,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xtcnode){$X_{itc}$};
+\draw(-1.2,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](enode){$\color{blue}{e_i}$};
+\draw(0,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phienode){$\phi_{ie}$};
+\draw(-0,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psienode){$\sigma_{e}$};
+\draw(1.1,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xenode){$X_{ie}$};
+\draw(-0,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](alphanode){$\boldsymbol\alpha$};
+\draw(-2.5,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](betanode){$\boldsymbol\beta$};
+
+\draw [->,>=latex,shorten >=-6pt,shorten <=-4pt,auto,node distance=0pt,thin] (phitcnode.270) -- (tcnode.north);
+\draw [->,>=latex,shorten >=-4pt,auto,node distance=.0pt,thin] (psitcnode) -- (tcnode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xtcnode) -- (phitcnode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=0pt,thin] (phienode) -- (enode);
+\draw [->,>=latex,shorten >=-2pt,auto,shorten <=-4pt,node distance=.0pt,thin] (psienode) -- (enode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xenode) -- (phienode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=red!65!blue] (enode) -- (phitcnode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-2pt,auto,node distance=.0pt,thin] (alphanode) -- (phienode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (betanode) -- (phitcnode);
+
+\draw[rounded corners=15pt,thick,color=red] (-4.1,-0.4) rectangle ++ (3.5,2.8) node[xshift=-2.6cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for Total cost};
+\draw[rounded corners=15pt,thick,color=blue] (-1.5,-.55) rectangle ++ (2.95,3.1) node[xshift=-1.1cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for QALY};
+
+\end{tikzpicture}
+```
+:::
+
+:::
+
+:::{#secondcol}
+
+\small \blue \center{Marginal model for $e$} \black
+
+$$
+\begin{aligned}
+\color{blue}{e_i}&\color{black}{\sim} f(\phi_{ie},\sigma_{e})\\
+g(\phi_{ie})&=\alpha_{0}+\alpha_1X_{ie}+\ldots
+\end{aligned}
+$$
+
+\small \red \center{Conditional model for $tc$}\black
+
+- Capture \color{red!65!blue}{\textit{correlation}} \black between the outcomes
+$$
+\begin{aligned}
+\color{red}{tc_i}\color{black}{\mid}\color{blue}{e_i} &\sim f(\phi_{itc},\sigma_{tc})\\
+g(\phi_{itc})&=\beta_0+\color{red!65!blue}{\beta_1}\color{blue}{e_i}\color{black}{+}\beta_2X_{itc}+\ldots
+\end{aligned}
+$$
+
+:::
+        
+::::
+
+## Aggregated-data model
+
+- Mean incremental \blue QALYs \black($\Delta_e=\mu_{e2}-\mu_{e1}$) and \red Total costs \black($\Delta_{tc}=\mu_{tc2}-\mu_{tc1}$) derived as *linear combination* of model parameters or through *simulation* (e.g. Monte Carlo methods)
+
+. . .
+
+- **Advantages**
+
+  + Need to model only two variables ($\color{blue}{e_i} \color{black}{,} \color{red}{tc_i}$)
+  + Relatively easy to implement in most cases
+
+. . .
+
+- **Drawbacks**
+
+  + \blue HRQL\black/\red HRU \black item nonreponses are either \myred \textit{discarded} \black or \myred \textit{imputed} \black a priori
+  + Incomplete \blue utilities \black/ \red costs \black are either *discarded* or *imputed* a priori
+  + Often partially-missing \red HRUs\black/ \red costs \black are imputed as \myred \textbf{zero}\black, and used to calculate $\color{red}{tc_i}$ \black to ensure higher completion rates   
+
+## Intermediate-data model
+
+- Longitudinal **joint** model for \blue utilities \black (\blue$u_{ij}$\black) and \red costs \black(\red$c_{ij}$\black)
+
+$$
+\scriptsize p(\color{blue}{u_{ij}}\color{black}{,}\color{red}{c_{ij}}\color{black}{)}=p(\color{blue}{u_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{c_{ij}}\color{black}{)}p(\color{red}{c_{ij}} \color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{c_{ij-1}}\color{black}{)}
+$$
+
+. . .
+
+:::: {layout="[0.5, 0.5]"}
+
+:::{#firstcol}
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\begin{tikzpicture}
+\draw(-1.2,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](cnode){$\color{red}{c_{ij}}$};
+\draw(-1.2,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](upastnode){$\color{blue}{u_{ij-1}}$};
+\draw(1.1,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](unode){$\color{blue}{u_{ij}}$};
+\draw(0,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phiunode){$\phi_{iju}$};
+\draw(1.1,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psiunode){$\sigma_{ju}$};
+\draw(1.1,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xunode){$X_{iu}$};
+\draw(-0,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](alphanode){$\boldsymbol \alpha_j$};
+
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=0pt,thin] (phiunode) -- (unode);
+\draw [->,>=latex,shorten >=-4pt,auto,shorten <=-4pt,node distance=.0pt,thin] (psiunode) -- (unode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=green!65!blue] (upastnode) -- (phiunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xunode) -- (phiunode);
+\draw [->,>=latex,shorten >=-6pt,shorten <=-2pt,auto,node distance=.0pt,thin] (alphanode) -- (phiunode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=red!65!blue] (cnode) -- (phiunode);
+
+\draw[rounded corners=15pt,thick,color=blue] (-1.7,-.55) rectangle ++ (3.2,3.1) node[xshift=-1.1cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for utility at $j$};
+
+\end{tikzpicture}
+```
+:::
+
+:::
+
+:::{#secondcol}
+
+\scriptsize \blue \center{Conditional models for $u$} \black
+
+- Select a *distribution*, *structure* and *link function* for each variable
+
+- Capture \color{red!65!blue}{\textit{correlation}} \black between outcomes and \color{green!65!blue}{\textit{dependence}} \black over time
+$$
+\scriptsize\begin{aligned}
+\color{blue}{u_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{c_{ij}} &\color{black}{\sim} f(\phi_{iju},\sigma_{ju})\\
+g(\phi_{iju}) =& \alpha_{0j} + \alpha_{1j} X_{iu} + \\
+& \color{green!65!blue}{\alpha_{2j}} \color{blue}{u_{ij-1}} \color{black}{+} \color{red!65!blue}{\alpha_{3j}} \color{red}{c_{ij}} \color{black}{+} \ldots
+\end{aligned}
+$$
+
+:::
+        
+::::
+
+
+## Intermediate-data model
+
+- Longitudinal **joint** model for \blue utilities \black (\blue$u_{ij}$\black) and \red costs \black(\red$c_{ij}$\black)
+
+$$
+\scriptsize p(\color{blue}{u_{ij}}\color{black}{,}\color{red}{c_{ij}}\color{black}{)}=p(\color{blue}{u_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{c_{ij}}\color{black}{)}p(\color{red}{c_{ij}} \color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{c_{ij-1}}\color{black}{)}
+$$
+
+:::: {layout="[0.5, 0.5]"}
+
+:::{#firstcol}
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\begin{tikzpicture}
+\draw(-1.2,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](cnode){$\color{red}{c_{ij}}$};
+\draw(-3.6,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](cpastnode){$\color{red}{c_{ij-1}}$};
+\draw(-2.5,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phicnode){$\phi_{ijc}$};
+\draw(-2.5,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psicnode){$\sigma_{jc}$};
+\draw(-3.6,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xcnode){$X_{ic}$};
+\draw(-1.2,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](upastnode){$\color{blue}{u_{ij-1}}$};
+\draw(1.1,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](unode){$\color{blue}{u_{ij}}$};
+\draw(0,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phiunode){$\phi_{iju}$};
+\draw(1.1,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psiunode){$\sigma_{ju}$};
+\draw(1.1,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xunode){$X_{iu}$};
+\draw(-0,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](alphanode){$\boldsymbol \alpha_j$};
+\draw(-2.5,2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](betanode){$\boldsymbol \beta_j$};
+
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=0pt,thin] (cnode) -- (phicnode);
+\draw [->,>=latex,shorten >=-4pt,auto,node distance=.0pt,thin] (psicnode) -- (cnode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=green!65!blue] (cpastnode) -- (phicnode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xcnode) -- (phicnode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=0pt,thin] (phiunode) -- (unode);
+\draw [->,>=latex,shorten >=-4pt,auto,shorten <=-4pt,node distance=.0pt,thin] (psiunode) -- (unode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=green!65!blue] (upastnode) -- (phiunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xunode) -- (phiunode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=red!65!blue] (upastnode) -- (phicnode);
+\draw [->,>=latex,shorten >=-6pt,shorten <=-2pt,auto,node distance=.0pt,thin] (alphanode) -- (phiunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (betanode) -- (phicnode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=red!65!blue] (cnode) -- (phiunode);
+
+\draw[rounded corners=15pt,thick,color=red] (-4.1,-0.4) rectangle ++ (3.5,2.8) node[xshift=-2.6cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for cost at $j$};
+\draw[rounded corners=15pt,thick,color=blue] (-1.7,-.55) rectangle ++ (3.2,3.1) node[xshift=-1.1cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for utility at $j$};
+
+\end{tikzpicture}
+```
+:::
+
+:::
+
+:::{#secondcol}
+
+\scriptsize \blue \center{Conditional models for $u$} \black
+
+$$
+\scriptsize\begin{aligned}
+\color{blue}{u_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{c_{ij}} &\color{black}{\sim} f(\phi_{iju},\sigma_{ju})\\
+g(\phi_{iju}) =& \alpha_{0j} + \alpha_{1j} X_{iu} + \\
+& \color{green!65!blue}{\alpha_{2j}} \color{blue}{u_{ij-1}} \color{black}{+} \color{red!65!blue}{\alpha_{3j}} \color{red}{c_{ij}} \color{black}{+} \ldots
+\end{aligned}
+$$
+
+\scriptsize \red \center{Conditional models for $c$} \black
+
+$$
+\scriptsize\begin{aligned}
+\color{red}{c_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{c_{ij-1}} &\color{black}{\sim} f(\phi_{ijc},\sigma_{jc})\\
+\color{black}{g(\phi_{ijc}) =}& \color{black}{\beta_{0j} + \beta_{1j} X_{ic} +} \\
+& \color{red!65!blue}{\beta_{2j}} \color{blue}{u_{ij-1}} \color{black}{+} \color{green!65!blue}{\beta_{3j}} \color{red}{c_{ij-1}} \color{black}{+} \ldots
+\end{aligned}
+$$
+
+:::
+        
+::::
+
+
+## Intermediate-data model
+
+- Time-specific mean \blue utilities \black ($\mu_{ju}$) and \red costs \black ($\mu_{jc}$) derived as *linear combination* of model parameters or through *simulation* (e.g. Monte Carlo methods), and then used to calculate $\Delta_e$ and $\Delta_{tc}$
+
+. . .
+
+- **Advantages**
+
+  + Directly capture the *longitudinal structure* of the data 
+  + Missingness in ($\color{blue}{u_{ij}}\color{black}{,}\color{red}{c_{ij}}$) is directly handled 
+
+. . .
+
+- **Drawbacks**
+
+  + More challenging to fit (i.e. $J\times 2$ variables) 
+  + \blue HRQL \black/ \red HRU \black item nonreponses are either \myred \textit{discarded} \black or \myred \textit{imputed} \black a priori
+  + Often partially-missing \red HRUs \black are imputed as \myred \textbf{zero}\black, and used to calculate $\color{red}{c_{ij}}$ \black to ensure higher completion rates
+
+## Disaggregated-data model
+
+- Longitudinal **joint** model for \blue utilities \black (\blue$u_{ij}$\black) and \red HRUs \black(\red$\text{hru}^k_{ij}$\black)
+
+$$
+\scriptsize p(\color{blue}{u_{ij}}\color{black}{,}\color{red}{\text{hru}^k_{ij}}\color{black}{)}=p(\color{blue}{u_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{\text{hru}^k_{ij}}\color{black}{)}p(\color{red}{\text{hru}^k_{ij}} \color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{\text{hru}^k_{ij-1}}\color{black}{)}
+$$
+
+. . .
+
+:::: {layout="[0.5, 0.5]"}
+
+:::{#firstcol}
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\begin{tikzpicture}
+\draw(-1.2,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](hrunode){$\color{red}{\text{hru}^k_{ij}}$};
+\draw(-1.2,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](upastnode){$\color{blue}{u_{ij-1}}$};
+\draw(1.1,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](unode){$\color{blue}{{u}_{ij}}$};
+\draw(0,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phiunode){$\phi_{iju}$};
+\draw(1.1,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psiunode){$\boldsymbol\sigma_{ju}$};
+\draw(1.1,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xunode){$\boldsymbol X_{iu}$};
+\draw(-0,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](alphanode){$\boldsymbol \alpha_j$};
+
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=0pt,thin] (phiunode) -- (unode);
+\draw [->,>=latex,shorten >=-2pt,auto,shorten <=-4pt,node distance=.0pt,thin] (psiunode) -- (unode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=green!65!blue] (upastnode) -- (phiunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xunode) -- (phiunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (alphanode) -- (phiunode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=red!65!blue] (hrunode) -- (phiunode);
+
+\draw[rounded corners=15pt,thick,color=blue] (-1.8,-.55) rectangle ++ (3.3,3.3) node[xshift=-0.9cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for utility at $j$};
+
+\end{tikzpicture}
+```
+:::
+
+:::
+
+:::{#secondcol}
+
+\scriptsize \blue \center{Conditional models for $u$} \black
+
+- Select a *distribution*, *structure* and *link function* for each variable
+
+- Capture \color{red!65!blue}{\textit{correlation}} \black between outcomes and \color{green!65!blue}{\textit{dependence}} \black over time
+$$
+\scriptsize\begin{aligned}
+\color{blue}{u_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{\text{hru}^k_{ij}} &\color{black}{\sim} f(\phi_{iju},\sigma_{ju})\\
+g(\phi_{iju}) =& \alpha_{0j} + \alpha_{1j} X_{iu} + \\
+& \color{green!65!blue}{\alpha_{2j}} \color{blue}{u_{ij-1}} \color{black}{+} \color{red!65!blue}{\alpha_{3j}} \color{red}{\text{hru}^k_{ij}} \color{black}{+} \ldots
+\end{aligned}
+$$
+:::
+        
+::::
+
+
+
+
+## Disaggregated-data model
+
+- Longitudinal **joint** model for \blue utilities \black (\blue$u_{ij}$\black) and \red HRUs \black(\red$\text{hru}^k_{ij}$\black)
+
+$$
+\scriptsize p(\color{blue}{u_{ij}}\color{black}{,}\color{red}{\text{hru}^k_{ij}}\color{black}{)}=p(\color{blue}{u_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{\text{hru}^k_{ij}}\color{black}{)}p(\color{red}{\text{hru}^k_{ij}} \color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{\text{hru}^k_{ij-1}}\color{black}{)}
+$$
+
+:::: {layout="[0.53, 0.47]"}
+
+:::{#firstcol}
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\begin{tikzpicture}
+\draw(-1.2,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](hrunode){$\color{red}{\text{hru}^k_{ij}}$};
+\draw(-4,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](hrupastnode){$\color{red}{\text{hru}^k_{ij-1}}$};
+\draw(-2.5,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phihrunode){$\phi^k_{ij\text{hru}}$};
+\draw(-3.6,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psihrunode){$\boldsymbol \sigma^k_{j\text{hru}}$};
+\draw(-3.6,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xhrunode){$\boldsymbol X_{i\text{hru}}$};
+\draw(-1.2,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](upastnode){$\color{blue}{u_{ij-1}}$};
+\draw(1.1,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](unode){$\color{blue}{u_{ij}}$};
+\draw(0,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phiunode){$\phi_{iju}$};
+\draw(1.1,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psiunode){$\boldsymbol\sigma_{ju}$};
+\draw(1.1,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xunode){$\boldsymbol X_{iu}$};
+\draw(-0,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](alphanode){$\boldsymbol \alpha_j$};
+\draw(-2.5,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](betanode){$\boldsymbol \beta^k_j$};
+\draw(-2.5,-1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](zerohru){$\color{orange}{\bar{\text{hru}}^k_{ij}}$};
+
+\draw [->,>=latex,shorten >=-6pt,shorten <=-4pt,auto,node distance=0pt,thin] (phihrunode) -- (hrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (psihrunode) -- (hrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=green!65!blue] (hrupastnode) -- (phihrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xhrunode) -- (phihrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=0pt,thin] (phiunode) -- (unode);
+\draw [->,>=latex,shorten >=-2pt,auto,shorten <=-4pt,node distance=.0pt,thin] (psiunode) -- (unode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=green!65!blue] (upastnode) -- (phiunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xunode) -- (phiunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=red!65!blue] (upastnode) -- (phihrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (alphanode) -- (phiunode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin] (betanode) -- (phihrunode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=red!65!blue] (hrunode) -- (phiunode);
+\draw [->,>=latex,shorten >=-8pt,shorten <=-8pt,auto,node distance=.0pt,thin,dotted] (zerohru) -- (hrunode);
+
+\draw[rounded corners=15pt,thick,color=red] (-4.65,-1.4) rectangle ++ (3.9,4.6) node[xshift=-1cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for service $k$ at $j$};
+\draw[rounded corners=15pt,thick,color=blue] (-1.8,-.55) rectangle ++ (3.3,3.3) node[xshift=-0.9cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for utility at $j$};
+
+\end{tikzpicture}
+```
+:::
+
+:::
+
+:::{#secondcol}
+
+\scriptsize \red \center{Conditional models for $\text{hru}^k$} \black
+
+- Specify outcome models for only *non-structural* values for service $k$
+
+$$
+\scriptsize\begin{aligned}
+\color{red}{\text{hru}^k_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}&\color{red}{\text{hru}^k_{ij-1}}\color{black}{\sim} f(\phi_{ijc},\sigma_{jc})\\
+\color{black}{g(\phi_{ijc}) =}& \color{black}{\beta_{0j} + \beta_{1j} X_{ic} +} \\
+& \color{red!65!blue}{\beta_{2j}} \color{blue}{u_{ij-1}} \color{black}{+} \color{green!65!blue}{\beta_{3j}} \color{red}{\text{hru}^k_{ij-1}} \color{black}{+} \ldots
+\end{aligned}
+$$
+:::
+        
+::::
+
+
+## Disaggregated-data model
+
+- Longitudinal **joint** model for \blue utilities \black (\blue$u_{ij}$\black) and \red HRUs \black(\red$\text{hru}^k_{ij}$\black)
+
+$$
+\scriptsize p(\color{blue}{u_{ij}}\color{black}{,}\color{red}{\text{hru}^k_{ij}}\color{black}{)}=p(\color{blue}{u_{ij}}\color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{\text{hru}^k_{ij}}\color{black}{)}p(\color{red}{\text{hru}^k_{ij}} \color{black}{\mid} \color{blue}{u_{ij-1}}\color{black}{,}\color{red}{\text{hru}^k_{ij-1}}\color{black}{)}
+$$
+
+:::: {layout="[0.5, 0.5]"}
+
+:::{#firstcol}
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\begin{tikzpicture}
+\draw(-2.3,-1.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](hrunode){$\color{red}{\text{hru}^k_{ij}}$};
+\draw(-2.3,-2.5) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](zerohru){$\color{orange}{\bar{\text{hru}}^k_{ij}}$};
+\draw(-2.3,-5.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](etazerohru){$\eta^k_{i}$};
+\draw(-1.2,-4.5) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](gammanode){$\boldsymbol \gamma^k$};
+\draw(-3.6,-4.5) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xzerohru){$\boldsymbol X^k_{i0}$};
+\draw(-2.3,-4) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](indzerohru){$d_{i0}^k$};
+
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (etazerohru) -- (indzerohru);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin] (gammanode) -- (etazerohru);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xzerohru) -- (etazerohru);
+\draw [->,>=latex,shorten >=-8pt,shorten <=-8pt,auto,node distance=.0pt,thin,dotted] (hrunode) -- (zerohru);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (indzerohru) -- (zerohru);
+
+\draw[rounded corners=15pt,thick,color=orange] (-4,-5.7) rectangle ++ (3.1,3.6) node[xshift=-2cm, yshift=-3.75cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module zeros for serive $k$};
+
+\end{tikzpicture}
+```
+:::
+
+:::
+
+:::{#secondcol}
+
+\scriptsize \orange \center{Logistic models for $\bar{\text{hru}}^k$} \black
+
+- Handle \orange \textbf{structural zeros} \black in service $k$ using an **hurdle approach**
+
+$$
+\scriptsize\begin{aligned}
+d^k_{i0}:=\mathbb{I}(\text{hru}_{i\forall j}=0)&\sim\mbox{Bernoulli}(\eta^k_{i}) \\
+\mbox{logit}(\eta^k_{i})&= \gamma^k_{0} + \gamma^k_{1}X_{i0} + \ldots
+\end{aligned}
+$$
+
+- Original \red $\text{hru}^k_{ij}$ \black are expressed as:
+$$
+\color{red}{\text{hru}^k_{ij}} = \color{red}{\text{hru}^k_{ij}} \color{black}{}\times (1 - \pi^k_0) + \color{orange}{\bar{\text{hru}}^k_{ij}} \color{black}{}\times \pi^k_0
+$$
+
+
+:::
+        
+::::
+
+
+## Disaggregated-data model
+
+- Longitudinal **joint** model for \blue utilities \black (\blue$u_{ij}$\black) and \red HRUs \black(\red$\text{hru}^k_{ij}$\black)
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\begin{tikzpicture}
+\draw(-1.2,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](hrunode){$\color{red}{\text{hru}^k_{ij}}$};
+\draw(-4,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](hrupastnode){$\color{red}{\text{hru}^k_{ij-1}}$};
+\draw(-2.5,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phihrunode){$\phi^k_{ij\text{hru}}$};
+\draw(-3.6,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psihrunode){$\boldsymbol \sigma^k_{j\text{hru}}$};
+\draw(-3.6,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xhrunode){$\boldsymbol X_{i\text{hru}}$};
+\draw(-1.2,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](upastnode){$\color{blue}{u_{ij-1}}$};
+\draw(1.1,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](unode){$\color{blue}{u_{ij}}$};
+\draw(0,1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](phiunode){$\phi_{iju}$};
+\draw(1.1,0) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](psiunode){$\boldsymbol\sigma_{ju}$};
+\draw(1.1,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xunode){$\boldsymbol X_{iu}$};
+\draw(-0,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](alphanode){$\boldsymbol \alpha_j$};
+\draw(-2.5,2.3) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](betanode){$\boldsymbol \beta^k_j$};
+\draw(-2.3,-1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](zerohru){$\color{orange}{\bar{\text{hru}}^k_{ij}}$};
+\draw(-2.3,-3.2) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](etazerohru){$\eta^k_{i}$};
+\draw(-1.2,-2.5) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](gammanode){$\boldsymbol \gamma^k$};
+\draw(-3.6,-2.5) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](xzerohru){$\boldsymbol X^k_{i0}$};
+\draw(-2.3,-2.1) node[align=center,circle,draw=none,fill=none,font=\sffamily\fontsize{9}{10}\selectfont,minimum width=.2cm,minimum height=.1cm](indzerohru){$d_{i0}^k$};
+
+\draw [->,>=latex,shorten >=-6pt,shorten <=-4pt,auto,node distance=0pt,thin] (phihrunode) -- (hrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (psihrunode) -- (hrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=green!65!blue] (hrupastnode) -- (phihrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xhrunode) -- (phihrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=0pt,thin] (phiunode) -- (unode);
+\draw [->,>=latex,shorten >=-2pt,auto,shorten <=-4pt,node distance=.0pt,thin] (psiunode) -- (unode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=green!65!blue] (upastnode) -- (phiunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xunode) -- (phiunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=red!65!blue] (upastnode) -- (phihrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (alphanode) -- (phiunode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin] (betanode) -- (phihrunode);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin,color=red!65!blue] (hrunode) -- (phiunode);
+\draw [->,>=latex,shorten >=-8pt,shorten <=-8pt,auto,node distance=.0pt,thin,dotted] (zerohru) -- (hrunode);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin] (etazerohru) -- (indzerohru);
+\draw [->,>=latex,shorten >=-2pt,shorten <=-4pt,auto,node distance=.0pt,thin] (gammanode) -- (etazerohru);
+\draw [->,>=latex,shorten >=-4pt,shorten <=-4pt,auto,node distance=.0pt,thin,thin] (xzerohru) -- (etazerohru);
+\draw [->,>=latex,shorten >=-6pt,shorten <=-6pt,auto,node distance=.0pt,thin] (zerohru) -- (indzerohru);
+
+\draw[rounded corners=15pt,thick,color=red] (-4.65,-1.4) rectangle ++ (3.9,4.6) node[xshift=-1cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for service $k$ at $j$};
+\draw[rounded corners=15pt,thick,color=blue] (-1.8,-.55) rectangle ++ (3.3,3.3) node[xshift=-0.9cm, yshift=0.15cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module for utility at $j$};
+\draw[rounded corners=15pt,thick,color=orange] (-4,-3.5) rectangle ++ (3.1,2.8) node[xshift=1.5cm, yshift=-1.75cm,font=\fontfamily{phv}]{\fontsize{6}{7}\selectfont Module zeros for serive $k$};
+
+\end{tikzpicture}
+```
+:::
+
+## Disaggregated-data model
+
+- Estimates for the overall mean \red HRUs \black for each service $k$ and time $j$ are then obtained as: 
+  + the linear combination $\mu^k_{j\text{hru}}=(1-\pi^k_0)\mu^{k}_{j\text{hru}}$ 
+  + which are then combined with unit prices $p^k$ to generate mean costs $μ^k_{jc}$ and summed across all services and times to obtain $μ_{tc}$ and $\Delta_{tc}$
+
+. . .
+
+- **Advantages**
+
+  + Directly capture the *longitudinal structure* of the data 
+  + Missingness in ($\color{blue}{u}_{ij}\color{black}{,}\color{red}{\text{hru}^k_{ij}}$) directly handled **without** the need of prior imputation 
+
+. . .
+
+- **Drawbacks**
+
+  + More challenging to fit (i.e. $J\times (K + 1)$ variables) 
+  + Need a compromise between **model complexity and feasibility** (e.g. in small samples)
+  
+  
+## Implementation
+
+- All models fitted to the PBS data via *JAGS*, called from *R*
+
+  + Total of $20000$ iterations per chain, with a burn-in of $10000$
+  + Convergence assessed via standard measures (e.g. *Rhat*, *Trace plots*)
+  + Fit to observed data assessed through **graphical posterior predictive checks** and Bayesian **information measures** (e.g. *WAIC*)
+  
+- For each model, the distribution for each outcome was selected after comparing the fit of alternative choices:
+
+  + **Normal** for \blue utilities \black/ \blue QALYs \black
+  + **Gamma** for \red costs \black/ \red Total costs \black (compared to Normal and LogNormal)
+  + **Normal + hurdle for structural zeros** for \red HRUs \black (compared to Poisson and Negative Binomial)
+  
+
+# Results
+
+## Posterior mean QALY/Total cost estimates  
+
+- Compare alternative *models* and *missingness strategies*:
+
+  + \blue \textbf{S1}\black) \blue \textbf{Aggregated data}\black: all cases (**ALL**); zero-imputed HRU \black (**IMP-H**); zero-imputed HRU \black and costs \black (**IMP-HC**)
+  + \olive \textbf{S2}\black) \olive \textbf{Intermediate data}\black: all cases (**ALL**); zero-imputed HRU \black (**IMP-H**) 
+  + \red \textbf{S3}\black) \red \textbf{Disaggregated data}\black: all cases (**ALL**)
+
+. . .
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\scalebox{.6}{
+\begin{tabular}{c|cc|cc|cc|cc}
+  \toprule
+ \multirow{2}{*}{Approach} &  \multicolumn{2}{c|}{$\mu_{tc(t=1)}$} &  \multicolumn{2}{c|}{$\mu_{tc(t=2)}$} & \multicolumn{2}{c|}{$\mu_{e(t=1)}$} &  \multicolumn{2}{c}{$\mu_{e(t=2)}$}\\ [0.15em]   %\cmidrule{2-5}
+  & mean & 95\% CI & mean & 95\% CI & mean & 95\% CI & mean & 95\% CI \\ 
+  \midrule
+ \multicolumn{9}{c}{\color{blue}{\textbf{Strategy 1}} - total cost \& QALY} \\[0.15em]
+\midrule
+ \textbf{ALL} & 2543 & (2157;2938) & 2754 & (2249;3310) & \color{myblue}{\textbf{0.487}} & (0.449;0.575) & \color{myblue}{\textbf{0.609}} & (0.569;0.649) \\[0.25em] 
+ \textbf{IMP-H} & 2888 & (2411;3393) & 2379 & (1939;2872)  & \color{myblue}{\textbf{0.488}} & (0.45;0.526) & \color{myblue}{\textbf{0.61}} & (0.571;0.651)\\[0.25em] 
+ \textbf{IMP-HC} & 2395 & (1897;2899) & 2237 & (1175;2749) & \color{myblue}{\textbf{0.486}} & (0.449;0.523) & \color{myblue}{\textbf{0.61}} & (0.572;0.649)\\[0.25em] 
+\midrule
+ \multicolumn{9}{c}{\color{olive}{\textbf{Strategy 2}} - cost \& utility at each time} \\[0.15em]
+\midrule
+ \textbf{ALL} & 2607 & (2253;2971) & 2701 & (2278;3145) & \color{myblue}{\textbf{0.494}} & (0.463;0.527) & \color{myblue}{\textbf{0.6}} & (0.566;0.635) \\[0.25em] 
+ \textbf{IMP-H} & 2453 & (2087;2843) & 2273 & (1874;2664) & \color{myblue}{\textbf{0.494}} & (0.462;0.526) & \color{myblue}{\textbf{0.6}} & (0.565;0.633) \\[0.25em] 
+\midrule
+ \multicolumn{9}{c}{\color{red}{\textbf{Strategy 3}} - HRU category \& utility at each time} \\[0.15em]
+\midrule
+ \textbf{ALL} & 2687 & (2173;3194) & 2587 & (1995;3206) & \color{myblue}{\textbf{0.513}} & (0.475;0.55) & \color{myblue}{\textbf{0.599}} & (0.565;0.634) \\
+   \bottomrule
+\end{tabular}}
+```
+
+:::
+
+## Posterior mean QALY/Total cost esitmates  
+
+- Compare alternative *models* and *missingness strategies*:
+
+  + \blue \textbf{S1}\black) \blue \textbf{Aggregated data}\black: all cases (**ALL**); zero-imputed HRU \black (**IMP-H**); zero-imputed HRU \black and costs \black (**IMP-HC**)
+  + \olive \textbf{S2}\black) \olive \textbf{Intermediate data}\black: all cases (**ALL**); zero-imputed HRU \black (**IMP-H**) 
+  + \red \textbf{S3}\black) \red \textbf{Disaggregated data}\black: all cases (**ALL**)
+
+::: {.center  data-latex=""}
+
+```{=latex}
+\scalebox{.6}{
+\begin{tabular}{c|cc|cc|cc|cc}
+  \toprule
+ \multirow{2}{*}{Approach} &  \multicolumn{2}{c|}{$\mu_{tc(t=1)}$} &  \multicolumn{2}{c|}{$\mu_{tc(t=2)}$} & \multicolumn{2}{c|}{$\mu_{e(t=1)}$} &  \multicolumn{2}{c}{$\mu_{e(t=2)}$}\\ [0.15em]   %\cmidrule{2-5}
+  & mean & 95\% CI & mean & 95\% CI & mean & 95\% CI & mean & 95\% CI \\ 
+  \midrule
+ \multicolumn{9}{c}{\color{blue}{\textbf{Strategy 1}} - total cost \& QALY} \\[0.15em]
+\midrule
+ \textbf{ALL} & \color{olive}{\textbf{2543}} & (2157;2938) & \color{myred}{\textbf{2754}} & (2249;3310) & 0.487 & (0.449;0.575) & 0.609 & (0.569;0.649) \\[0.25em] 
+ \textbf{IMP-H} & \color{myred}{\textbf{2888}} & (2411;3393) & \color{olive}{\textbf{2379}} & (1939;2872)  & 0.488 & (0.45;0.526) & 0.61 & (0.571;0.651)\\[0.25em] 
+ \textbf{IMP-HC} & \color{myred}{\textbf{2395}} & (1897;2899) & \color{olive}{\textbf{2237}} & (1175;2749) & 0.486 & (0.449;0.523) & 0.61 & (0.572;0.649)\\[0.25em] 
+\midrule
+ \multicolumn{9}{c}{\color{olive}{\textbf{Strategy 2}} - cost \& utility at each time} \\[0.15em]
+\midrule
+ \textbf{ALL} & \color{olive}{\textbf{2607}} & (2253;2971) & \color{myred}{\textbf{2701}} & (2278;3145) & 0.494 & (0.463;0.527) & 0.6 & (0.566;0.635) \\[0.25em] 
+ \textbf{IMP-H} & \color{myred}{\textbf{2453}} & (2087;2843) & \color{olive}{\textbf{2273}} & (1874;2664) & 0.494 & (0.462;0.526) & 0.6 & (0.565;0.633) \\[0.25em] 
+\midrule
+ \multicolumn{9}{c}{\color{red}{\textbf{Strategy 3}} - HRU category \& utility at each time} \\[0.15em]
+\midrule
+ \textbf{ALL} & \color{myred}{\textbf{2687}} & (2173;3194) & \color{olive}{\textbf{2587}} & (1995;3206) & 0.513 & (0.475;0.55) & 0.599 & (0.565;0.634) \\
+   \bottomrule
+\end{tabular}}
+```
+
+:::
+
+## Posterior mean incremental TC esitmates  
+
+- **Key results**:
+
+  + \blue\textbf{S1}\black/\olive\textbf{S2} \black $\Delta_{tc}$ based on zero-imputed data are systematically lower 
+  + \red\textbf{S3} \black $\Delta_{tc}$ located between \blue\textbf{S1}\black/\olive\textbf{S2} \black alternative missingness strategies
+
+![](figure\delta_tc_compare2.jpg){width=50% fig-align="center"}
+
+## Economic evaluation
+
+- Assess cost-effectiveness based on standard tools
+
+  + **CE plane**: representation of the joint distribution of $(\Delta_e,\Delta_{tc})$
+  
+![](figure\cep_plot2.jpg){width=55% fig-align="center"}
+
+## Economic evaluation
+
+- Assess cost-effectiveness based on standard tools
+
+  + **CE acceptability curve**: proportion of dots lying below the straight line (*sustainability area*) in CE plane upon varying the threshold $k$
+
+\vspace{-0.14cm}  
+![](figure\ceac_plot2.jpg){width=55% fig-align="center"}
+
+# Discussion
+
+## Summary
+
+- CEAs often conducted on quantities derived from *questionnaire data* affected by \myred \textbf{missingness} \black
+
+  + Lack of a \textbf{"gold standard"} to handle missing at item level (e.g. \red HRUs\black)
+  + Current practice often relies on \myred \textit{ad-hoc methods}\black (e.g. \myred \textbf{zero-imputing}\black)
+  + These can **distort** the data and lead to *incorrect* inferences
+
+. . .
+  
+- Propose Bayesian framework for CEA data to handle \myred \textit{item nonresponse} \black in \red HRUs\black
+
+  + Allow to fit models at \myblue \textbf{different levels} \black of data-aggregation
+  + Can handle different types of \myblue \textbf{data features} \black (correlation, skewness, structural zeros)
+  + Directly quantify impact of \myred \textbf{missingness uncertainty} \black on results
+  + Implemented using *freely-available* software (e.g. JAGS)
+  
+  
+## Application
+
+- Application to PBS data shows that:
+
+  + Model estimates and CE results are **affected** by the approach used
+  + Aggregated models require \myred \textbf{implicit assumptions}\black (e.g. *zero*) about disaggregated missingness
+  + Possibly lead to a substantial \myred \textbf{loss of information} \black and **distort** the results
+
+. . .
+
+- \myblue \textbf{Advantages}\black:
+  + Quantify impact of missingness and parameter uncertainty **coherently** with the analysis model 
+  + **Flexible** model specification at *different aggregation levels*
+
+. . .
+
+- \myred \textbf{Limitations}\black:
+  + Same assumption for cases with different **missingness patterns** 
+  + **Challenging** to fit as number of variables and parameters increases
+
+
+## Recommendations \& Conclusions
+
+- \olive \textbf{Design}\black: **minimise** item missingness (e.g. shorter follow-ups or fewer questionnaire items)
+
+- \olive \textbf{Data processing}\black: \myred \textbf{ad-hoc} \black imputation should be **avoided** unless clearly motivated
+
+- \olive \textbf{Analysis}\black: account for *data features*, including **missingness**:
+
+  + Fully-missing \blue HRQL\black/\red HRU \black $\&$ partially-missing \blue utilities\black /\red costs\black $\rightarrow$ **Intermediate model**
+  + Partially-missing \red HRU \black $\&$ \red costs \black $\rightarrow$ **Disaggregated model**
+
+. . .
+  
+- Always need to find a \myblue \textbf{balance} \black between **ideal approach** and its **feasibility** based on the available data:
+
+  + \olive \textbf{Simplify} \black model (i.e. dependence among variables) to reduce the number of parameters
+  + Use *more* \olive \textbf{informative priors} \black to handle sparse data
+  + \olive \textbf{Aggregate} \black some types of \red HRUs \black to reduce number of variables
+
+
+## References
+
+\scriptsize 
+
+::: {#refs}
+
+:::
+
+
+
